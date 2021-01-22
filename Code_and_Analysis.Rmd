@@ -1,0 +1,74 @@
+---
+title: "Genomic Inversions in \escoli Alter Gene Expression: Code and Analysis"
+output: html_notebook
+header-includes: \usepackage{xspace, xcolor, hyperref}
+---
+\newcommand{\ecol}{\textit{E.\,coli}\xspace}
+\newcommand{\escoli}{\textit{Escherichia coli}\xspace}
+
+```{r setup, include=FALSE}
+library(dotwhisker)
+library(broom)
+library(dplyr)
+library(tidyverse)
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+library(ggplot2)
+library(flextable)
+options(scipen=10000)
+#prevent overflow of code boxes
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=70),tidy=TRUE)
+```
+
+
+This Notebook gives an overview of key code, commands, data, and analysis used for the paper titles ``Genomic Inversions in \escoli Alter Gene Expression: Code and Analysis'' by Daniella F Lato, Qing Zeng, and G Brian Golding (\textcolour{red}{insert url to paper here}). 
+
+#Sequence Data
+Information for the RNA-seq data used in this analysis can be found in the \href{run:./Supplementary_Material_Lato_Zeng_Golding_GenomicInversionsInEcoli.pdf}{Supplementary Material.}
+
+Gene information was extracted from each of the \texttt{GenBank} files using the following custom \texttt{Python} (version 3.5.1) script.
+```{bash}
+python3 ./code/get_gene_pos_name_inversions.py INPUT_FILE.gbk OUTPUT_FILE.txt
+```
+
+Whole core genome alignment was performed using \texttt{Parsnp} (version v1.2), where \ecol K-12 MG1655 was used as the reference genome.
+```{bash}
+parsnp -g REFERENCE_GENOME.gbk -d ./Other_Genomes/ -c
+```
+Individual alignment blocks were extracted from the \texttt{Parsnp} output using custom \texttt{shell} and \texttt{Perl} (version v5.10.1) scripts.
+Each alignment block was re-aligned with \texttt{MAFFT}.
+```{bash}
+mafft --auto INPUT.fasta  > OUTPUT.mafft 
+```
+
+##Conformation of Homologous Regions
+Proteomes were downloaded from UniProt (see \href{run:./Supplementary_Material_Lato_Zeng_Golding_GenomicInversionsInEcoli.pdf}{Supplementary Material} for more information), and run though a pair-wise \texttt{DIAMOND} (version v0.9.9.110). The \texttt{blastp} version used was 2.9.0.
+```{bash}
+diamond blastp --more-sensitive --query-cover 95 --evalue 1e6 -outfmt "6"
+```
+A custom \texttt{Python} (version 3.5.1) script was used to extract all relevant protein infromation from the proteomes.
+```{bash}
+python3 ./code/parse_all_blast_names.py
+```
+A custom \texttt{Python} (version 3.5.1) script was used to determine the reciprocal best blast hits.
+```{bash}
+python3 ./code/extract_recip_best_blast_hits.py -a BLAST_OUTPUT_A -b BLAST_OUTPUT_B -c PROTEOME_FILE_A -d PROTEOME_FILE_B -e GBK_INFO_FILE_A -f GBK_INFO_FILE_B -g PROTEIN_INFO_FILE_A -i PROTEIN_INFO_FILE_B -o OUTPUT_FILE
+```
+
+
+##Identification of Inversions
+Inversion information was obtained from the \texttt{Parsnp}/\texttt{MAFFT} alignment blocks using a custom \texttt{python} (version 3.5.1) script.
+```{bash}
+python3 inversions_block_info.py INPUT_ALIGNMENT.fasta
+```
+
+
+
+#Gene Expression
+Information for the RNA-seq data used in this analysis can be found in the \href{run:./Supplementary_Material_Lato_Zeng_Golding_GenomicInversionsInEcoli.pdf}{Supplementary Material.}
+Pre-processing to combine the raw expression files was done with custom \texttt{shell} scripts.
+
+##Normalization:
+Gene expression was normalized using the following \texttt{R} code.
